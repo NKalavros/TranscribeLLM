@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Academic Paper Summarizer</title>
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            background-color: #f0f4f8;
+            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e0e6ed;
+        }
+
+        .form-section {
+            background: #ffffff;
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid #e0e6ed;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        input[type="file"] {
+            display: block;
+            margin: 1rem 0;
+            padding: 0.75rem;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            width: 100%;
+            background: white;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="file"]:focus {
+            border-color: #4a90e2;
+            outline: none;
+        }
+
+        #prompt_prefix {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            background: white;
+            transition: border-color 0.3s ease;
+            color: #4a5568;
+            /* Changed from dark gray to medium gray */
+        }
+
+        #prompt_prefix:focus {
+            border-color: #4a90e2;
+            outline: none;
+        }
+
+        button {
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #357abd;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .summary-box {
+            background: white;
+            border: 1px solid #e0e6ed;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-item {
+            padding: 1rem;
+            margin: 0.5rem 0;
+            background: #ffffff;
+            border: 1px solid #e0e6ed;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .ranking-select,
+        .quality-score {
+            min-width: 120px;
+            margin-left: 1rem;
+            padding: 0.5rem;
+            border: 1px solid #d0d7de;
+            border-radius: 4px;
+            background: white;
+            transition: border-color 0.3s ease;
+            color: #4a5568;
+        }
+
+        .ranking-select:focus,
+        .quality-score:focus {
+            border-color: #4a90e2;
+            outline: none;
+        }
+
+        .quality-score {
+            width: 80px;
+        }
+
+        .summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .summary-header h3 {
+            margin: 0;
+            color: #2c3e50;
+        }
+
+        .summary-content {
+            margin-top: 1rem;
+            color: #4a5568;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+
+        label {
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .validation-error {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container markdown-body">
+        <h1>Academic Paper Summarizer</h1>
+
+        <div class="form-section">
+            <form id="summarizeForm">
+                <div class="form-group">
+                    <label for="file">Upload PDF:</label>
+                    <input type="file" id="file" name="file" accept=".pdf" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="youtube_url">YouTube URL:</label>
+                    <input type="text" id="youtube_url" name="youtube_url" placeholder="YouTube URL" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="prompt_prefix">Summary Prompt:</label>
+                    <input type="text" id="prompt_prefix" name="prompt_prefix"
+                        value="Summarize this academic paper and video:">
+                </div>
+                <div class="form-group">
+                    <label for="question_difficulty">Question Difficulty:</label>
+                    <select id="question_difficulty" name="question_difficulty" required>
+                        <option value="Easy">Easy</option>
+                        <option value="Medium" selected>Medium</option>
+                        <option value="Hard">Hard</option>
+                    </select>
+                    <div id="difficulty-error" class="validation-error hidden"></div>
+                </div>
+                <button type="submit" id="submit-btn">Generate Summaries</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="progress-container" class="hidden">
+        <h2>Processing Progress</h2>
+        <div id="progress-list"></div>
+    </div>
+
+    <div id="ranking-container" class="hidden">
+
+        <h2>Generated Summaries</h2>
+        <form id="ranking-form">
+            <div id="summaries-list"></div>
+            <button type="submit" id="rank-submit-btn">Submit Rankings</button>
+        </form>
+    </div>
+    </div>
+
+    <script>
+        marked.setOptions({
+            breaks: true,
+            sanitize: true
+        });
+
+        let currentRequestId = '';
+        document.getElementById('summarizeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+
+            const formData = new FormData(e.target);
+
+            try {
+                // Single fetch call to /summarize
+                const response = await fetch('/summarize', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.status === 401) {
+                    alert('Please log in to use this feature');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to start processing');
+                }
+
+                if (response.status === 202) {
+                    currentRequestId = data.request_id;
+                    document.getElementById('progress-container').classList.remove('hidden');
+                    monitorProgress(data.status_urls);
+                }
+            } catch (error) {
+                console.error('Fetch Error:', error);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Generate Summaries';
+            }
+        });
+
+        async function monitorProgress(taskIds) {
+            const progressList = document.getElementById('progress-list');
+            const results = {};
+            const taskStates = new Map();
+
+            taskIds.forEach(taskId => {
+                taskStates.set(taskId, { completed: false, attempts: 0 });
+            });
+
+            progressList.innerHTML = taskIds.map(taskId => `
+            <div class="progress-item" id="task-${taskId}">
+                ⏳ Initializing task ${taskId.slice(-6)}
+            </div>
+            `).join('');
+
+            const interval = setInterval(async () => {
+                const checks = Array.from(taskStates).map(async ([taskId, state]) => {
+                    if (state.completed) return true;
+
+                    try {
+                        const response = await fetch(`/status/${taskId}`);
+                        if (!response.ok) throw new Error('Network error');
+
+                        const status = await response.json();
+                        taskStates.get(taskId).attempts++;
+
+                        const item = document.getElementById(`task-${taskId}`);
+                        if (!item) return false;
+
+                        switch (status.status) {
+                            case 'completed':
+                                item.innerHTML = `✅ ${status.model} completed`;
+                                results[status.model] = status.summary;
+                                taskStates.get(taskId).completed = true;
+                                return true;
+                            case 'failed':
+                                item.innerHTML = `❌ ${status.model} failed: ${status.error}`;
+                                taskStates.get(taskId).completed = true;
+                                return true;
+                            default:
+                                item.innerHTML = `⏳ ${status.model || 'Task'} processing (attempt ${taskStates.get(taskId).attempts})`;
+                                return false;
+                        }
+                    } catch (error) {
+                        console.error(`Error checking ${taskId}:`, error);
+                        return false;
+                    }
+                });
+
+                try {
+                    const statuses = await Promise.all(checks);
+                    const allDone = statuses.every(s => s === true);
+
+                    if (allDone || Array.from(taskStates.values()).every(t => t.attempts >= 10)) {
+                        clearInterval(interval);
+                        showRankingForm(results);
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                    clearInterval(interval);
+                }
+            }, 2000);
+        }
+
+        // Update the ranking select options generation
+        function showRankingForm(results) {
+            const list = document.getElementById('summaries-list');
+            list.innerHTML = '';
+            const modelCount = Object.keys(results).length;
+
+            Object.entries(results).forEach(([modelId, result], index) => {
+                const div = document.createElement('div');
+                div.className = 'summary-box';
+                div.innerHTML = `
+            <div class="summary-header">
+                <h3>Summary ${index + 1}</h3>
+                <div>
+                    <select class="ranking-select" name="${modelId}">
+                        <option value="">Select Rank</option>
+                        ${Array.from({ length: modelCount }, (_, i) => `
+                <option value="${i + 1}">${i + 1}</option>
+                `).join('')}
+                    </select>
+                    <input type="number" class="quality-score" name="quality-${modelId}" min="0" max="10"
+                        placeholder="Score (0-10)">
+                </div>
+            </div>
+            <div class="summary-content">${marked.parse(result)}</div>
+            `;
+                list.appendChild(div);
+            });
+
+            // Update validation message
+            document.querySelector('#ranking-form button').insertAdjacentHTML('beforebegin',
+                `<p class="ranking-instruction">Assign unique ranks (1-${modelCount}) and scores</p>`
+            );
+
+            document.getElementById('ranking-container').classList.remove('hidden');
+            document.getElementById('progress-container').classList.add('hidden');
+        }
+
+        // Update form validation
+        document.getElementById('ranking-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const rankings = {};
+            const qualityScores = {};
+            const selects = document.querySelectorAll('.ranking-select');
+            const scores = document.querySelectorAll('.quality-score');
+            const modelCount = selects.length;
+            const ranks = new Set();
+
+            // Validate rankings
+            selects.forEach(select => {
+                if (select.value) {
+                    const rank = parseInt(select.value);
+                    if (rank < 1 || rank > modelCount) {
+                        alert(`Rank must be between 1 and ${modelCount}`);
+                        select.value = '';
+                        return;
+                    }
+                    if (ranks.has(rank)) {
+                        alert('Please assign unique ranks!');
+                        select.value = '';
+                        return;
+                    }
+                    ranks.add(rank);
+                    rankings[select.name] = rank;
+                }
+            });
+
+            // Validate scores
+            scores.forEach(score => {
+                if (score.value) {
+                    const modelId = score.name.replace('quality-', '');
+                    const scoreValue = parseInt(score.value);
+                    if (scoreValue < 0 || scoreValue > 10) {
+                        alert('Score must be between 0-10');
+                        score.value = '';
+                        return;
+                    }
+                    qualityScores[modelId] = scoreValue;
+                }
+            });
+
+            if (Object.keys(rankings).length !== modelCount ||
+                Object.keys(qualityScores).length !== modelCount) {
+                alert(`Please rank all ${modelCount} summaries and provide quality scores!`);
+                return;
+            }
+
+            // Submit data
+            try {
+                const response = await fetch('/rankings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        request_id: currentRequestId,
+                        rankings: rankings,
+                        quality_scores: qualityScores
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Thank you for your rankings and quality scores!');
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                console.error('Submission failed:', error);
+                alert('Submission failed. Please try again.');
+            }
+        });
+    </script>
+</body>
+
+</html>
